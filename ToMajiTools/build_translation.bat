@@ -39,6 +39,13 @@ if not exist "scenario" mkdir "scenario"
 copy /Y "st\*.mjil" "scenario\" >nul
 copy /Y "st\*.mjres" "scenario\" >nul
 echo Clean disassemblies copied from st to scenario.
+python patch_furigana.py "scenario"
+if errorlevel 1 (
+    echo [ERROR] Furigana patching failed!
+    popd
+    pause
+    exit /b 1
+)
 
 echo.
 echo [2/6] Inserting translations into .mjres...
