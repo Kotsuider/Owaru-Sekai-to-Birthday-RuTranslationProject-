@@ -190,7 +190,15 @@ def cmd_insert_from_md(md_input: str, outdir: str):
 
                 final_name = nametl if nametl else origname
                 if final_name:
-                    final_val = f"{final_name}「{chosen_text}」"
+                    if "「||" in orig_val or orig_val.rstrip("\r\n").endswith("||"):
+                        if not chosen_text.endswith("||"):
+                            final_val = f"{final_name}「{chosen_text}||"
+                        else:
+                            final_val = f"{final_name}「{chosen_text}"
+                    elif not orig_val.rstrip("\r\n").endswith("」"):
+                        final_val = f"{final_name}「{chosen_text}"
+                    else:
+                        final_val = f"{final_name}「{chosen_text}」"
                 else:
                     final_val = chosen_text
             else:
@@ -245,7 +253,16 @@ def cmd_insert_from_xlsx(input_xlsx: str, outdir: str):
 
             final_name = name_tl if name_tl else orig_name
             if final_name:
-                full_value = final_name + "「" + insert_value + "」"
+                orig_raw = str(row[2].value or "")
+                if "「||" in orig_raw or orig_raw.rstrip("\r\n").endswith("||"):
+                    if not insert_value.endswith("||"):
+                        full_value = final_name + "「" + insert_value + "||"
+                    else:
+                        full_value = final_name + "「" + insert_value
+                elif not orig_raw.rstrip("\r\n").endswith("」"):
+                    full_value = final_name + "「" + insert_value
+                else:
+                    full_value = final_name + "「" + insert_value + "」"
             else:
                 full_value = insert_value
 

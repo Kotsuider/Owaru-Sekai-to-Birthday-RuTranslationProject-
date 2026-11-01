@@ -17,6 +17,7 @@ patch_furigana.py — Скрипт отключения вывода фуриг�
 import os
 import sys
 import re
+import glob
 import argparse
 
 REPLACEMENTS = [
@@ -83,20 +84,61 @@ def patch_yazlib(filepath: str) -> bool:
         return False
 
 
+def patch_bytecode_quotes(scenario_dir: str) -> int:
+    """
+    Нейтрализует хардкод вывода скобок фуриганы (ldstr " ｢")
+    и паразитный сдвиг курсора влево (ldc.i -24) во всех .mjil файлах сценария.
+    """
+    total_patched_files = 0
+    total_quote_patches = 0
+    total_offset_patches = 0
+
+    mjil_files = glob.glob(os.path.join(scenario_dir, "*.mjil"))
+    for filepath in mjil_files:
+        with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+
+        # 1. Заменяем строку с полуширинной скобкой ' ｢' на пустую строку ''
+        new_content, n_quotes = re.subn(r'ldstr\s+" ｢"', 'ldstr         ""', content)
+
+        # 2. Убираем сдвиг курсора влево (-24) перед ctrl "o"
+        new_content, n_offsets = re.subn(
+            r'ldc\.i\s+-24(?=\s*\n\s*ldc\.i\s+0\s*\n\s*ctrl\s+"o")',
+            'ldc.i         0',
+            new_content
+        )
+
+        if n_quotes > 0 or n_offsets > 0:
+            with open(filepath, "w", encoding="utf-8", newline="\n") as f:
+                f.write(new_content)
+            total_patched_files += 1
+            total_quote_patches += n_quotes
+            total_offset_patches += n_offsets
+
+    print(f"[OK] Патч макроса скобок: обработано {total_patched_files} файлов .mjil (скобок: {total_quote_patches}, сдвигов: {total_offset_patches}).")
+    return total_patched_files
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Отключение вывода фуриганы в байт-коде Majiro.")
+    parser = argparse.ArgumentParser(description="Отключение вывода фуриганы и скобок в байт-коде Majiro.")
     parser.add_argument("target", nargs="?", default="scenario", help="Папка scenario или путь к yazlib.mjil")
     args = parser.parse_args()
 
     if os.path.isdir(args.target):
         yazlib_path = os.path.join(args.target, "yazlib.mjil")
+        scenario_dir = args.target
     else:
         yazlib_path = args.target
+        scenario_dir = os.path.dirname(args.target) or "."
 
     success = patch_yazlib(yazlib_path)
     if not success and not os.path.isfile(yazlib_path):
         sys.exit(1)
 
+    if os.path.isdir(scenario_dir):
+        patch_bytecode_quotes(scenario_dir)
+
 
 if __name__ == "__main__":
     main()
+
